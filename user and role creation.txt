@@ -1,0 +1,34 @@
+--USER creation--
+--staff creation--
+/*director*/
+create user WEATHERUP identified by password;
+/*manager*/
+create user KEATES identified by password;
+/*library assistant*/
+create user MOUSBY identified by password;
+/*database administrator*/
+create user VIGAR identified by password;
+
+--patron creation--
+create user SEBYER identified by password;
+create user SMALLSMAN identified by password;
+create user MOSEY identified by password;
+
+--role creation--
+create role staff_role;
+grant create session, connect to staff_role;
+create role manager_role;
+grant create session, connect to manager_role;s
+create role patron_role;
+grant create session, connect to patron_role;
+create role dba_admin;
+grant create session, connect, resource to admin with admin option;
+create role director;
+grant create session, connect, to director;
+
+--role assignment--
+grant staff_role to WEATHERUP, KEATES, MOUSBY, VIGAR;
+grant manager_role to KEATES;
+grant patron_role to SEBYER, SMALLSMAN, MOSEY;
+grant dba_admin to VIGAR;
+grant director to WEATHERUP;

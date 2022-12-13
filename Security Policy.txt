@@ -1,0 +1,205 @@
+--staff table security policy--
+
+data redaction
+
+--1st security policy--
+create view public_staff_view as select first_name, last_name, email from staff;
+grant select on public_staff_view to staff_role;
+
+--test--
+conn Mousby/password;
+show user;
+select * from dbst_user.public_staff_view;
+
+--2nd security policy--
+create view private_staff_view as select s.first_name, s.last_name, s.email, s.phone, l.address, l.city, l.state, l.zipcode, l.country from location l join staff s on s.id = l.staff_id where s.last_name=user;
+grant select on private_staff_view to staff_role;
+grant update on private_staff_view to staff_role;
+
+--test--
+conn Mousby/password;
+show user
+select * from dbst_user.private_staff_view;
+update dbst_user.private_staff_view SET CITY='ATLANTA';
+/*attempt to update another table*/
+update dbst_user.private_staff_view SET CITY='ATLANTA' where last_name='avon';
+
+--3rd security policy--
+grant select on staff to director;
+
+--test--
+conn Weatherup/password;
+show user;
+select * from dbst_user.staff;
+
+--4th security policy--
+grant select on public_staff_view to patron_role;
+
+--test--
+conn Sebyer/password;
+show user;
+select * from dbst_user.public_staff_view;
+
+--5th security policy--
+create view full_private_staff_view as select s.id, s.first_name, s.last_name, s.email, s.phone, l.address, l.id as locationid, l.city, l.state, l.zipcode, l.country from location l join staff s on s.id = l.staff_id;
+grant select on full_private_staff_view to manager_role;
+
+--test--
+conn Keates/password;
+select * from dbst_user.full_private_staff_view;
+
+--6th security policy--
+grant all on staff to dba_admin;
+
+--test--
+conn Vigar/password;
+show user
+select * from dbst_user.staff;
+alter table dbst_user.staff add (test char(2), test1 char(2));
+alter table dbst_user.staff drop (test, test1);
+update dbst_user.staff set last_name='diggar' where last_name='vigar';
+update dbst_user.staff set last_name='vigar' where last_name='diggar';
+
+--patron table security policy--
+
+--1st security policy--
+create view my_patron_view as select p.first_name, p.last_name, p.email, p.phone, l.address, l.city, l.state, l.zipcode, l.country from patron p join location l on p.id=l.patron_id where p.last_name=user;
+grant select on my_patron_view to patron_role
+
+--test--
+conn Sebyer/password;
+show user;
+select * from dbst_user.my_patron_view;
+
+--2nd security policy--
+grant select on patron to staff_role;
+
+--test--
+conn Mousby/password;
+show user;
+select * from dbst_user.patron;
+
+--3rd security policy--
+grant select, insert, update, delete on patron to manager_role, director;
+
+--test--
+conn Weatherup/password;
+show user;
+insert into patron (id, first_name, last_name, email, phone) values ('1111', 'Yanny', 'Mantom', 'ymantom@gmail.com', '6575567556');
+disconnect
+conn DBST_USER/SecurePassword;
+conn keates/password;
+show user;
+delete from patron where last_name='Mantom';
+
+--4th security policy--
+grant all on patron to dba_admin;
+
+--fee table security policy--
+
+--1st security policy--
+create view my_fee_view as select id, balance, interest from fee f join patron p on p.id = f.patron_id where p.last_name=user;
+grant select on my_fee_view to patron_role;
+
+--test--
+conn Sebyer/password;
+show user;
+select * from dbst_user.my_fee_view;
+
+--2nd security policy--
+grant select, update, insert, delete on fee to staff_role;
+
+--test--
+conn Mousby/password; 
+show user;
+select * from fee;
+delete from fee where id='66415';
+
+--3rd security policy--
+grant all on fee to dba_admin;
+
+--loan security policy--
+
+--1st security policy--
+create view my_loan_view as select id, reservedate, returndate, duedate from loan f join patron p on p.id = f.patron_id where patron.last_name=user;
+grant select on my_loan_view to patron_role;
+
+--test--
+conn MOSEY/password;
+show user;
+select * from dbst_user.my_loan_view;
+
+--2nd security policy--
+grant select, update, insert, delete on loan to staff_role;
+
+--test--
+conn Mousby/password; 
+show user;
+select * from loan;
+delete from loan where id='93300';
+
+--3rd security policy--
+grant all on loan to dba_admin;
+
+
+--location security policy--
+
+--1st security policy
+grant all on location to dba_admin with grant options;
+
+--books and publisher security policy--
+
+--1st security policy--
+create view patron_book_view as select b.isbn, b.title, b.edition, b.category, b.price, p.name, p.publisheryear from books b join publisher p on p.id=b.publisher_id;
+grant select on patron_book_view to patron_role;
+
+--test--
+conn Sebyer/password;
+show user;
+select * from dbst_user.patron_book_view;
+
+--2nd security policy--
+create view patron_publisher_view as select p.name, p.publisheryear from publisher p;
+grant select on patron_publisher_view to patron_role;
+
+--test--
+conn Sebyer/password;
+show user;
+select * from dbst_user.patron_publisher_view;
+
+--3rd security policy--
+create view my_book_view as select b.isbn, b.title, b.edition, b.category, b.price, p.name, p.publisheryear from publisher p join books b on p.id=b.publisher_id on s.id=b.staff_id where s.last_name=user;
+grant select on my_book_view to staff_role;
+
+--test--
+conn Mousby/password;
+show user;
+select * from dbst_user.my_book_view;
+
+--4rd security policy--
+grant select, update, delete, insert on book, publisher to manager_role, director;
+
+--test--
+conn Keates/password;
+insert into publisher (id, name, publisheryear) values ('999', 'McGraw Cambridge', to_date('2022-11', 'YYYY-MM'));
+insert into books (isbn, title, edition, category, price, publisher_id, staff_id) values ('111111111-1', 'Explicit-sensitive migration strategies', '1', 'Electronics', 15, '999', '993');
+disconnect
+conn DBST_USER/SecurePassword;
+conn weatherup/password;
+
+
+--5th security policy--
+grant all on books, publisher to dba_admin;
+
+--community security policy--
+
+--1st security policy--
+create view staff_community_view as select s.first_name, s.last_name, c.loa_start from community c join staff s on c.staff_id=s.id where s.last_name=user;
+grant select on staff_community_view to staff_role;
+
+--2nd security policy--
+create view patron_community_view as select p.first_name, p.last_name, c.loa_start from community c join patron p on c.patron_id=p.id where p.last_name=user;
+grant select on patron_community_view to patron_role;
+
+--3rd security policy--
+grant all on community to dba_admin;
